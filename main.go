@@ -23,6 +23,7 @@ import (
 	"os"
 	"time"
 
+	"tkestack.io/tapp/config"
 	"tkestack.io/tapp/pkg/admission"
 	clientset "tkestack.io/tapp/pkg/client/clientset/versioned"
 	informers "tkestack.io/tapp/pkg/client/informers/externalversions"
@@ -76,6 +77,7 @@ var (
 		RetryPeriod:   metav1.Duration{Duration: 2 * time.Second},
 		ResourceLock:  "endpoints",
 	}
+	enableUpdateEtcdInOrder bool
 )
 
 const (
@@ -113,6 +115,7 @@ func main() {
 	controller := tapp.NewController(kubeClient, tappClient, kubeInformerFactory, tappInformerFactory)
 	run := func(ctx context.Context) {
 		stop := ctx.Done()
+		config.SetEnableUpdateEtcdInOrderFlag(enableUpdateEtcdInOrder)
 		if createCRD {
 			wait.PollImmediateUntil(time.Second*5, func() (bool, error) { return tapp.EnsureCRDCreated(extensionsClient) }, stop)
 		}
@@ -206,6 +209,7 @@ func addFlags(fs *pflag.FlagSet) {
 	fs.StringVar(&tlsCertFile, "tlsCertFile", "/etc/certs/tls.crt", "File containing the x509 Certificate for HTTPS.")
 	fs.StringVar(&tlsKeyFile, "tlsKeyFile", "/etc/certs/tls.key", "File containing the x509 private key to for HTTPS.")
 	fs.StringVar(&namespace, "namespace", "kube-system", "Namespace to deploy tapp controller")
+	flag.BoolVar(&enableUpdateEtcdInOrder, "enableUpdateEtcdInOrder", false, "Whether to enable update etcd in order.")
 
 	leaderelectionconfig.BindFlags(&leaderElection, fs)
 }

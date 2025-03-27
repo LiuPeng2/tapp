@@ -22,9 +22,11 @@ import (
 	"reflect"
 	"sort"
 	"strconv"
+	"strings"
 	"sync"
 	"time"
 
+	"tkestack.io/tapp/config"
 	tappv1 "tkestack.io/tapp/pkg/apis/tappcontroller/v1"
 	clientset "tkestack.io/tapp/pkg/client/clientset/versioned"
 	tappscheme "tkestack.io/tapp/pkg/client/clientset/versioned/scheme"
@@ -60,7 +62,8 @@ const (
 	// number of retries for a status update.
 	statusUpdateRetries = 2
 
-	NodeUnreachablePodReason = "NodeLost"
+	NodeUnreachablePodReason  = "NodeLost"
+	AnnotationEtcdUpdateOrder = "etcdcluster.etcd.tkestack.io/update-order"
 )
 
 type PodAction string
@@ -798,7 +801,34 @@ func (c *Controller) transformPodActions(tapp *tappv1.TApp, podActions map[strin
 	var rollingUpdateIds []string
 	availablePods := getAvailablePods(podMap, desiredRunningPods)
 
-	for p, a := range podActions {
+	//针对order对podActions 进行排序
+	podActionOrders := make([]string, 0, len(podActions))
+	if order, ok := tapp.Annotations[AnnotationEtcdUpdateOrder]; ok && order != "" && config.EnableUpdateEtcdInOrder {
+		orderList := strings.Split(order, ",")
+		for _, v := range orderList {
+			tmp := strings.Split(v, "-")
+			if len(tmp) <= 0 {
+				return nil, nil, nil, nil
+			}
+			index := tmp[len(tmp)-1]
+			if podActions[index] != "" {
+				podActionOrders = append(podActionOrders, index)
+			}
+		}
+		if len(podActionOrders) != len(podActions) {
+			klog.Errorf("update order is not complete, order %s, podActions %v", order, podActions)
+			return nil, nil, nil, nil
+		}
+	} else {
+		for k := range podActions {
+			podActionOrders = append(podActionOrders, k)
+		}
+	}
+
+	klog.Infof("podActionOrders %v, name %s", podActionOrders, tapp.Name)
+
+	for _, p := range podActionOrders {
+		a := podActions[p]
 		pod := podMap[p]
 		switch a {
 		case deletePod:
@@ -830,7 +860,8 @@ func (c *Controller) transformPodActions(tapp *tappv1.TApp, podActions map[strin
 	}
 	minAvailablePods := desiredRunningPods.Len() - v
 
-	for p, a := range podActions {
+	for _, p := range podActionOrders {
+		a := podActions[p]
 		pod := podMap[p]
 		switch a {
 		case updatePod:
