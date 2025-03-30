@@ -209,7 +209,7 @@ func addFlags(fs *pflag.FlagSet) {
 	fs.StringVar(&tlsCertFile, "tlsCertFile", "/etc/certs/tls.crt", "File containing the x509 Certificate for HTTPS.")
 	fs.StringVar(&tlsKeyFile, "tlsKeyFile", "/etc/certs/tls.key", "File containing the x509 private key to for HTTPS.")
 	fs.StringVar(&namespace, "namespace", "kube-system", "Namespace to deploy tapp controller")
-	flag.BoolVar(&enableUpdateEtcdInOrder, "enableUpdateEtcdInOrder", false, "Whether to enable update etcd in order.")
+	fs.BoolVar(&enableUpdateEtcdInOrder, "enableUpdateEtcdInOrder", false, "Whether to enable update etcd in order.")
 
 	leaderelectionconfig.BindFlags(&leaderElection, fs)
 }

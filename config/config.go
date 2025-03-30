@@ -1,6 +1,8 @@
 package config
 
-import "k8s.io/klog"
+import (
+	"k8s.io/klog"
+)
 
 var (
 	EnableUpdateEtcdInOrder = false
