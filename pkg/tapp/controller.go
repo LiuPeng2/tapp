@@ -806,20 +806,23 @@ func (c *Controller) transformPodActions(tapp *tappv1.TApp, podActions map[strin
 	if order, ok := tapp.Annotations[AnnotationEtcdUpdateOrder]; ok && order != "" && config.EnableUpdateEtcdInOrder {
 		orderList := strings.Split(order, ",")
 		for _, v := range orderList {
-			tmp := strings.Split(v, "-")
-			if len(tmp) <= 0 {
-				return nil, nil, nil, nil
+			parts := strings.Split(v, "-")
+			if len(parts) <= 0 {
+				klog.Errorf("invalid order %s", v)
+				continue
 			}
-			index := tmp[len(tmp)-1]
-			if podActions[index] != "" {
+			index := parts[len(parts)-1]
+			if _, exists := podActions[index]; exists {
 				podActionOrders = append(podActionOrders, index)
 			}
 		}
 		if len(podActionOrders) != len(podActions) {
 			klog.Errorf("update order is not complete, order %s, podActions %v", order, podActions)
-			return nil, nil, nil, nil
+			podActionOrders = podActionOrders[:0]
 		}
-	} else {
+	}
+
+	if len(podActionOrders) == 0 {
 		for k := range podActions {
 			podActionOrders = append(podActionOrders, k)
 		}
